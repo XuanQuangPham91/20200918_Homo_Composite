@@ -320,7 +320,7 @@ solve(a == l2, u2, bc2)
 # %%
 # mesh = UnitCubeMesh(10, 10, 10)
 # HTML(X3DOM.html(mesh))
-HTML(X3DOM.html(u2.cpp_object()))
+# HTML(X3DOM.html(u2.cpp_object()))
 # print(type(u0))
 # print(type(u0.cpp_object()))
 
@@ -364,4 +364,61 @@ plt.savefig('results/result_grad_e2.eps', format='eps')
 plt.show()
 
 
+# %%
+''' Calculate numerical integration of Homogenized elastic properties (efficient tensor) '''
+''' Compute gradient '''
 
+# V_g = VectorFunctionSpace(mesh, 'Lagrange', 2)
+v_g = TestFunction(V)
+w_g = TrialFunction(V)
+
+a = inner(w_g, v_g)*dx
+
+# for w1 (or u1)
+L_w1 = inner(grad(u1), v_g)*dx
+grad_u1 = Function(V)
+solve(a == L_w1, grad_u1)
+grad_u1_y1, grad_u1_y2 = grad_u1.split(deepcopy=True)  # extract components
+
+# for w1 (or u1)
+L_w1 = inner(grad(u1), v_g)*dx
+grad_u1 = Function(V)
+solve(a == L_w1, grad_u1)
+grad_u1_y1, grad_u1_y2 = grad_u1.split(deepcopy=True)  # extract components
+
+# for w2 (or u2)
+L_w2 = inner(grad(u2), v_g)*dx
+grad_u2 = Function(V)
+solve(a == L_w2, grad_u2)
+grad_u2_y1, grad_u2_y2 = grad_u2.split(deepcopy=True)  # extract components
+
+''' Homogenized tensor components'''
+# Homogenized tensor A11
+A11_expression = Expression(
+    'A_y * ( 1 + grad_u1_y1 )', A_y=A_y, grad_u1_y1=grad_u1_y1, degree=1)
+A11 = assemble(project(A11_expression, V)*dx)
+
+# Homogenized tensor A22
+A22_expression = Expression(
+    'A_y * ( 1 + grad_u2_y2 )', A_y=A_y, grad_u2_y2=grad_u2_y2, degree=1)
+A22 = assemble(project(A22_expression, V)*dx)
+# print(assemble(A22*dx))
+
+# Homogenized tensor A12
+A12_expression = Expression(
+    'A_y * ( grad_u2_y1 )', A_y=A_y, grad_u2_y1=grad_u2_y1, degree=1)
+A12 = assemble(project(A12_expression, V)*dx)
+
+# Homogenized tensor A21
+A21_expression = Expression(
+    'A_y * ( grad_u1_y2 )', A_y=A_y, grad_u1_y2=grad_u1_y2, degree=1)
+A21 = assemble(project(A21_expression, V)*dx)
+
+
+A_ij = np.array([[A11, A12], [ A21, A22]])
+print('The homogenized effective coefficient matrix: \n', A_ij)
+print('The homogenized effective coefficient component A11 = ', A11)
+print('The homogenized effective coefficient component A12 = ', A12)
+print('The homogenized effective coefficient component A21 = ', A21)
+print('The homogenized effective coefficient component A22 = ', A22)
+# print(A11-A22)
